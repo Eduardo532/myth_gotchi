@@ -15,10 +15,14 @@ class HomeostasisLoop extends ChangeNotifier {
 
   bool _needsAttention = false;
   bool _isDead = false;
+  bool _isSick = false;
+  int _poopCount = 0;
 
   MythCreature? get creature => _creature;
   bool get needsAttention => _needsAttention;
   bool get isDead => _isDead;
+  bool get isSick => _isSick;
+  int get poopCount => _poopCount;
 
   HomeostasisLoop() {
     _initializeEcosystem();
@@ -53,6 +57,8 @@ class HomeostasisLoop extends ChangeNotifier {
     );
     _isDead = false;
     _needsAttention = false;
+    _isSick = false;
+    _poopCount = 0;
     await _saveState();
     notifyListeners();
   }
@@ -88,6 +94,15 @@ class HomeostasisLoop extends ChangeNotifier {
       if (_creature!.happiness > 0) _creature!.happiness -= 1;
     }
 
+    if (_creature!.ageInHours % 120 == 0 && _creature!.phase != OntogenicPhase.egg) {
+      if (_poopCount < 4) _poopCount += 1;
+    }
+
+    if (_poopCount >= 3 && !_isSick) {
+      _isSick = true;
+      _needsAttention = true;
+    }
+
     _evaluateHomeostasis();
     _evaluateOntogeny();
     _evaluateMortality();
@@ -103,7 +118,7 @@ class HomeostasisLoop extends ChangeNotifier {
   // --- Interacción del Usuario ---
 
   void feed() {
-    if (_creature == null || _creature!.phase == OntogenicPhase.spirit) return;
+    if (_creature == null || _creature!.phase == OntogenicPhase.spirit || _isSick) return;
     if (_creature!.hunger < 4) {
       _creature!.hunger += 1;
       _creature!.weight += 0.5;
@@ -114,12 +129,41 @@ class HomeostasisLoop extends ChangeNotifier {
   }
 
   void play() {
-    if (_creature == null || _creature!.phase == OntogenicPhase.spirit) return;
+    if (_creature == null || _creature!.phase == OntogenicPhase.spirit || _isSick) return;
     if (_creature!.happiness < 4) {
       _creature!.happiness += 1;
       _creature!.weight -= 0.2;
       _resolveAttentionCall();
       _saveState();
+      notifyListeners();
+    }
+  }
+
+  void clean() {
+    if (_creature == null || _creature!.phase == OntogenicPhase.spirit) return;
+    if (_poopCount > 0) {
+      _poopCount = 0;
+      notifyListeners();
+    }
+  }
+
+  void heal() {
+    if (_creature == null || _creature!.phase == OntogenicPhase.spirit) return;
+    if (_isSick) {
+      _isSick = false;
+      _resolveAttentionCall();
+      notifyListeners();
+    }
+  }
+
+  void discipline() {
+    if (_creature == null || _creature!.phase == OntogenicPhase.spirit) return;
+    if (_needsAttention && _creature!.hunger >= 3 && _creature!.happiness >= 3 && !_isSick) {
+      _needsAttention = false;
+      _attentionTimer?.cancel();
+      notifyListeners();
+    } else {
+      _creature!.happiness = (_creature!.happiness - 1).clamp(0, 4);
       notifyListeners();
     }
   }
@@ -132,11 +176,15 @@ class HomeostasisLoop extends ChangeNotifier {
         _needsAttention = true;
         _attentionTimer = Timer(const Duration(minutes: 15), _registerCareMistake);
       }
+    } else if (_creature!.ageInHours % 180 == 0 && _creature!.hunger > 2 && _creature!.happiness > 2) {
+      if (!_needsAttention && !_isSick) {
+        _needsAttention = true;
+      }
     }
   }
 
   void _resolveAttentionCall() {
-    if (_creature!.hunger > 0 && _creature!.happiness > 0) {
+    if (_creature!.hunger > 0 && _creature!.happiness > 0 && !_isSick) {
       _needsAttention = false;
       _attentionTimer?.cancel();
     }

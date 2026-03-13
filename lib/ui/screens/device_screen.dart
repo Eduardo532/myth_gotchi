@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import '../../services/homeostasis_loop.dart';
 import '../widgets/creature_sprite.dart';
 import '../widgets/status_meters.dart';
+import '../widgets/stats_view.dart';
+import '../widgets/ble_menu_view.dart';
+
+enum LcdView { pet, stats, ble }
 
 // --- Pantalla Principal ---
 
@@ -38,15 +42,32 @@ class DeviceScreen extends StatelessWidget {
 
 // --- Entorno Virtual LCD ---
 
-class _VirtualLcdScreen extends StatelessWidget {
+class _VirtualLcdScreen extends StatefulWidget {
   const _VirtualLcdScreen({Key? key}) : super(key: key);
+
+  @override
+  State<_VirtualLcdScreen> createState() => _VirtualLcdScreenState();
+}
+
+class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
+  LcdView _currentView = LcdView.pet;
+
+  void _toggleView(LcdView view) {
+    setState(() {
+      if (_currentView == view) {
+        _currentView = LcdView.pet;
+      } else {
+        _currentView = view;
+      }
+    });
+  }
 
   void _showDevMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -73,6 +94,10 @@ class _VirtualLcdScreen extends StatelessWidget {
         builder: (context, loop, child) {
           final hasCreature = loop.creature != null;
 
+          if (!hasCreature) {
+            _currentView = LcdView.pet;
+          }
+
           return Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -82,71 +107,48 @@ class _VirtualLcdScreen extends StatelessWidget {
                 children: [
                   _LcdIcon(
                     icon: Icons.monitor_heart,
-                    isActive: false,
-                    onTap: () => _showDevMessage(context, 'Menú de Estadísticas en desarrollo'),
+                    isActive: _currentView == LcdView.stats,
+                    onTap: () {
+                      if (hasCreature) _toggleView(LcdView.stats);
+                    },
                   ),
                   _LcdIcon(
                     icon: Icons.restaurant,
                     isActive: false,
                     onTap: () {
                       if (hasCreature) {
+                        _currentView = LcdView.pet;
                         loop.feed();
-                      } else {
-                        _showDevMessage(context, 'No hay criatura para alimentar');
                       }
                     },
                   ),
                   _LcdIcon(
                     icon: Icons.cleaning_services,
                     isActive: false,
-                    onTap: () => _showDevMessage(context, 'Acción de Limpiar/Bañar en desarrollo'),
+                    onTap: () {
+                      if (hasCreature) {
+                        _currentView = LcdView.pet;
+                        loop.clean();
+                      }
+                    },
                   ),
                   _LcdIcon(
                     icon: Icons.sports_esports,
                     isActive: false,
                     onTap: () {
                       if (hasCreature) {
+                        _currentView = LcdView.pet;
                         loop.play();
-                      } else {
-                        _showDevMessage(context, 'No hay criatura para jugar');
                       }
                     },
                   ),
                 ],
               ),
 
-              // --- Pantalla Central (Sprite y Medidores) ---
+              // --- Pantalla Central ---
               Expanded(
-                child: hasCreature
-                    ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const StatusMeters(),
-                    const Spacer(),
-                    const CreatureSprite(),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Text(
-                          'EDAD: ${loop.creature!.ageInHours ~/ 24}D',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          'PESO: ${loop.creature!.weight.toStringAsFixed(1)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-                    : const Center(
+                child: !hasCreature
+                    ? const Center(
                   child: Text(
                     'PRESIONA (B)\nPARA INICIAR',
                     textAlign: TextAlign.center,
@@ -156,7 +158,8 @@ class _VirtualLcdScreen extends StatelessWidget {
                       letterSpacing: 2.0,
                     ),
                   ),
-                ),
+                )
+                    : _buildCentralView(loop),
               ),
 
               // --- Fila Inferior de Iconos ---
@@ -165,18 +168,30 @@ class _VirtualLcdScreen extends StatelessWidget {
                 children: [
                   _LcdIcon(
                     icon: Icons.bluetooth,
-                    isActive: false,
-                    onTap: () => _showDevMessage(context, 'Menú de Conexión BLE en desarrollo'),
+                    isActive: _currentView == LcdView.ble,
+                    onTap: () {
+                      if (hasCreature) _toggleView(LcdView.ble);
+                    },
                   ),
                   _LcdIcon(
                     icon: Icons.record_voice_over,
                     isActive: false,
-                    onTap: () => _showDevMessage(context, 'Acción de Disciplina en desarrollo'),
+                    onTap: () {
+                      if (hasCreature) {
+                        _currentView = LcdView.pet;
+                        loop.discipline();
+                      }
+                    },
                   ),
                   _LcdIcon(
                     icon: Icons.medical_services,
                     isActive: false,
-                    onTap: () => _showDevMessage(context, 'Acción de Medicina en desarrollo'),
+                    onTap: () {
+                      if (hasCreature) {
+                        _currentView = LcdView.pet;
+                        loop.heal();
+                      }
+                    },
                   ),
                   _LcdIcon(
                     icon: Icons.notification_important,
@@ -184,8 +199,6 @@ class _VirtualLcdScreen extends StatelessWidget {
                     onTap: () {
                       if (loop.needsAttention) {
                         _showDevMessage(context, '¡Tu criatura necesita atención!');
-                      } else {
-                        _showDevMessage(context, 'Historial de Alertas en desarrollo');
                       }
                     },
                   ),
@@ -195,6 +208,45 @@ class _VirtualLcdScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildCentralView(HomeostasisLoop loop) {
+    switch (_currentView) {
+      case LcdView.stats:
+        return const StatsView();
+      case LcdView.ble:
+        return const BleMenuView();
+      case LcdView.pet:
+      default:
+        return _buildPetView(loop);
+    }
+  }
+
+  Widget _buildPetView(HomeostasisLoop loop) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (loop.isSick)
+          const Align(
+            alignment: Alignment.topRight,
+            child: Icon(Icons.medical_information, size: 32, color: Colors.black87),
+          )
+        else
+          const SizedBox(height: 32),
+
+        const Spacer(),
+        const CreatureSprite(),
+        const Spacer(),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: List.generate(
+            loop.poopCount,
+                (index) => const Icon(Icons.cookie, size: 24, color: Colors.black87),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -238,16 +290,6 @@ class _LcdIcon extends StatelessWidget {
 class _HardwarePanel extends StatelessWidget {
   const _HardwarePanel({Key? key}) : super(key: key);
 
-  void _showDevMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final loop = context.read<HomeostasisLoop>();
@@ -259,21 +301,19 @@ class _HardwarePanel extends StatelessWidget {
         children: [
           _HardwareButton(
             label: 'A',
-            onTap: () => _showDevMessage(context, 'Botón A: Seleccionar (En desarrollo)'),
+            onTap: () {},
           ),
           _HardwareButton(
             label: 'B',
             onTap: () {
               if (loop.creature == null) {
                 loop.hatchNewEgg('egg_dragon');
-              } else {
-                _showDevMessage(context, 'Botón B: Ejecutar / Atrás (En desarrollo)');
               }
             },
           ),
           _HardwareButton(
             label: 'C',
-            onTap: () => _showDevMessage(context, 'Botón C: Cancelar (En desarrollo)'),
+            onTap: () {},
           ),
         ],
       ),
