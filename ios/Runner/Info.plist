@@ -66,5 +66,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+    <key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Necesitamos acceso al Bluetooth para encontrar y conectarnos con otras criaturas mitológicas cercanas.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Necesitamos acceso al Bluetooth para intercambiar datos de tu mascota con otros dispositivos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>El escaneo de dispositivos Bluetooth requiere acceso a la ubicación para funcionar correctamente.</string>
 </dict>
 </plist>
