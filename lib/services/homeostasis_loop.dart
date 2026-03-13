@@ -6,8 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/myth_creature.dart';
 import '../models/evolution_tree.dart';
 
-// --- Bucle de Homeostasis ---
-
 class HomeostasisLoop extends ChangeNotifier {
   MythCreature? _creature;
   Timer? _tickTimer;
@@ -27,8 +25,6 @@ class HomeostasisLoop extends ChangeNotifier {
   HomeostasisLoop() {
     _initializeEcosystem();
   }
-
-  // --- Inicialización y Persistencia ---
 
   Future<void> _initializeEcosystem() async {
     final prefs = await SharedPreferences.getInstance();
@@ -62,8 +58,6 @@ class HomeostasisLoop extends ChangeNotifier {
     await _saveState();
     notifyListeners();
   }
-
-  // --- Reloj Biológico ---
 
   void _startBiologicalClock() {
     _tickTimer?.cancel();
@@ -115,8 +109,6 @@ class HomeostasisLoop extends ChangeNotifier {
     }
   }
 
-  // --- Interacción del Usuario ---
-
   void feed() {
     if (_creature == null || _creature!.phase == OntogenicPhase.spirit || _isSick) return;
     if (_creature!.hunger < 4) {
@@ -132,7 +124,7 @@ class HomeostasisLoop extends ChangeNotifier {
     if (_creature == null || _creature!.phase == OntogenicPhase.spirit || _isSick) return;
     if (_creature!.happiness < 4) {
       _creature!.happiness += 1;
-      _creature!.weight -= 0.2;
+      _creature!.weight = (_creature!.weight - 0.2).clamp(1.0, 999.0);
       _resolveAttentionCall();
       _saveState();
       notifyListeners();
@@ -167,8 +159,6 @@ class HomeostasisLoop extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  // --- Algoritmos de Consecuencia ---
 
   void _evaluateHomeostasis() {
     if (_creature!.hunger == 0 || _creature!.happiness == 0) {

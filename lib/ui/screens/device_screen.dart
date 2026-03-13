@@ -1,15 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/homeostasis_loop.dart';
 import '../widgets/creature_sprite.dart';
-import '../widgets/status_meters.dart';
 import '../widgets/stats_view.dart';
 import '../widgets/ble_menu_view.dart';
 
 enum LcdView { pet, stats, ble }
-
-// --- Pantalla Principal ---
 
 class DeviceScreen extends StatelessWidget {
   const DeviceScreen({Key? key}) : super(key: key);
@@ -40,8 +38,6 @@ class DeviceScreen extends StatelessWidget {
   }
 }
 
-// --- Entorno Virtual LCD ---
-
 class _VirtualLcdScreen extends StatefulWidget {
   const _VirtualLcdScreen({Key? key}) : super(key: key);
 
@@ -51,6 +47,14 @@ class _VirtualLcdScreen extends StatefulWidget {
 
 class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
   LcdView _currentView = LcdView.pet;
+  Timer? _actionTimer;
+  IconData? _currentActionIcon;
+
+  @override
+  void dispose() {
+    _actionTimer?.cancel();
+    super.dispose();
+  }
 
   void _toggleView(LcdView view) {
     setState(() {
@@ -58,6 +62,22 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
         _currentView = LcdView.pet;
       } else {
         _currentView = view;
+      }
+    });
+  }
+
+  void _triggerActionFeedback(IconData icon) {
+    setState(() {
+      _currentActionIcon = icon;
+      _currentView = LcdView.pet;
+    });
+
+    _actionTimer?.cancel();
+    _actionTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _currentActionIcon = null;
+        });
       }
     });
   }
@@ -101,7 +121,6 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
           return Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // --- Fila Superior de Iconos ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -116,9 +135,11 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     icon: Icons.restaurant,
                     isActive: false,
                     onTap: () {
-                      if (hasCreature) {
-                        _currentView = LcdView.pet;
+                      if (hasCreature && !loop.isSick) {
                         loop.feed();
+                        _triggerActionFeedback(Icons.fastfood);
+                      } else if (loop.isSick) {
+                        _showDevMessage(context, 'No quiere comer, está enfermo');
                       }
                     },
                   ),
@@ -127,8 +148,8 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     isActive: false,
                     onTap: () {
                       if (hasCreature) {
-                        _currentView = LcdView.pet;
                         loop.clean();
+                        _triggerActionFeedback(Icons.shower);
                       }
                     },
                   ),
@@ -136,16 +157,17 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     icon: Icons.sports_esports,
                     isActive: false,
                     onTap: () {
-                      if (hasCreature) {
-                        _currentView = LcdView.pet;
+                      if (hasCreature && !loop.isSick) {
                         loop.play();
+                        _triggerActionFeedback(Icons.sports_baseball);
+                      } else if (loop.isSick) {
+                        _showDevMessage(context, 'No quiere jugar, está enfermo');
                       }
                     },
                   ),
                 ],
               ),
 
-              // --- Pantalla Central ---
               Expanded(
                 child: !hasCreature
                     ? const Center(
@@ -162,7 +184,6 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     : _buildCentralView(loop),
               ),
 
-              // --- Fila Inferior de Iconos ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -178,8 +199,8 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     isActive: false,
                     onTap: () {
                       if (hasCreature) {
-                        _currentView = LcdView.pet;
                         loop.discipline();
+                        _triggerActionFeedback(Icons.campaign);
                       }
                     },
                   ),
@@ -188,8 +209,8 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
                     isActive: false,
                     onTap: () {
                       if (hasCreature) {
-                        _currentView = LcdView.pet;
                         loop.heal();
+                        _triggerActionFeedback(Icons.healing);
                       }
                     },
                   ),
@@ -224,34 +245,71 @@ class _VirtualLcdScreenState extends State<_VirtualLcdScreen> {
   }
 
   Widget _buildPetView(HomeostasisLoop loop) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final creature = loop.creature;
+
+    return Stack(
       children: [
-        if (loop.isSick)
-          const Align(
-            alignment: Alignment.topRight,
-            child: Icon(Icons.medical_information, size: 32, color: Colors.black87),
-          )
-        else
-          const SizedBox(height: 32),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (loop.isSick)
+              const Align(
+                alignment: Alignment.topRight,
+                child: Icon(Icons.medical_information, size: 32, color: Colors.black87),
+              )
+            else
+              const SizedBox(height: 32),
 
-        const Spacer(),
-        const CreatureSprite(),
-        const Spacer(),
+            const Spacer(),
+            const CreatureSprite(),
+            const Spacer(),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: List.generate(
-            loop.poopCount,
-                (index) => const Icon(Icons.cookie, size: 24, color: Colors.black87),
-          ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: List.generate(
+                loop.poopCount,
+                    (index) => const Icon(Icons.cookie, size: 24, color: Colors.black87),
+              ),
+            ),
+          ],
         ),
+
+        if (creature != null && !loop.isSick)
+          Positioned(
+            top: 40,
+            left: 20,
+            child: Column(
+              children: [
+                if (creature.hunger <= 1)
+                  const Icon(Icons.restaurant, size: 28, color: Colors.black54),
+                if (creature.happiness <= 1)
+                  const Icon(Icons.heart_broken, size: 28, color: Colors.black54),
+              ],
+            ),
+          ),
+
+        if (_currentActionIcon != null)
+          Positioned(
+            top: 20,
+            right: 60,
+            child: TweenAnimationBuilder(
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 300),
+              builder: (context, double val, child) {
+                return Transform.scale(
+                  scale: val,
+                  child: Opacity(
+                    opacity: val,
+                    child: Icon(_currentActionIcon, size: 60, color: Colors.black87),
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 }
-
-// --- Icono Pulsable LCD ---
 
 class _LcdIcon extends StatelessWidget {
   final IconData icon;
@@ -285,8 +343,6 @@ class _LcdIcon extends StatelessWidget {
   }
 }
 
-// --- Panel de Hardware ---
-
 class _HardwarePanel extends StatelessWidget {
   const _HardwarePanel({Key? key}) : super(key: key);
 
@@ -299,10 +355,7 @@ class _HardwarePanel extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _HardwareButton(
-            label: 'A',
-            onTap: () {},
-          ),
+          _HardwareButton(label: 'A', onTap: () {}),
           _HardwareButton(
             label: 'B',
             onTap: () {
@@ -311,10 +364,7 @@ class _HardwarePanel extends StatelessWidget {
               }
             },
           ),
-          _HardwareButton(
-            label: 'C',
-            onTap: () {},
-          ),
+          _HardwareButton(label: 'C', onTap: () {}),
         ],
       ),
     );

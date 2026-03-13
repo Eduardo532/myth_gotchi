@@ -3,8 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/homeostasis_loop.dart';
 import '../../models/evolution_tree.dart';
-
-// --- Vista de Estadísticas ---
+import 'status_meters.dart';
 
 class StatsView extends StatelessWidget {
   const StatsView({Key? key}) : super(key: key);
@@ -30,12 +29,15 @@ class StatsView extends StatelessWidget {
               'ESTADO',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: 18,
                 letterSpacing: 2.0,
                 decoration: TextDecoration.underline,
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          const StatusMeters(),
+          const Divider(color: Colors.black54),
           _StatRow(label: 'NOMBRE:', value: creature.name),
           _StatRow(label: 'ESPECIE:', value: speciesName),
           _StatRow(label: 'EDAD:', value: '${creature.ageInHours ~/ 24} DIAS'),
@@ -47,39 +49,21 @@ class StatsView extends StatelessWidget {
   }
 }
 
-// --- Componente de Fila ---
-
 class _StatRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _StatRow({
-    Key? key,
-    required this.label,
-    required this.value,
-  }) : super(key: key);
+  const _StatRow({Key? key, required this.label, required this.value}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
         ],
       ),
     );
